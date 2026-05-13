@@ -9,6 +9,11 @@ const sharedRegions: Region[] = [
     dominance: 92,
     evolution: "Expanded dramatically in social mammals and primates.",
     color: "#65e7dc",
+    detail: {
+      microstructures: ["Association cortex", "Motor planning bands", "Inhibitory control loops"],
+      pathway: "Routes intent through motor planning, reward prediction, and social inference circuits.",
+      studyPrompt: "Rotate the frontal shell and inspect how executive fibers fan into motor regions.",
+    },
   },
   {
     id: "temporal",
@@ -18,6 +23,11 @@ const sharedRegions: Region[] = [
     dominance: 76,
     evolution: "Links sensory detail with learned context and recall.",
     color: "#a890ff",
+    detail: {
+      microstructures: ["Hippocampal index", "Auditory maps", "Object recognition columns"],
+      pathway: "Binds sensory signatures into memory snapshots that can be recalled and compared.",
+      studyPrompt: "Use detailed view to isolate memory bands and compare them with optic input.",
+    },
   },
   {
     id: "optic",
@@ -27,6 +37,11 @@ const sharedRegions: Region[] = [
     dominance: 84,
     evolution: "Specializes differently in predators, birds, and primates.",
     color: "#f5b95d",
+    detail: {
+      microstructures: ["Retinotopic sheets", "Motion detectors", "Depth fusion relays"],
+      pathway: "Transforms light patterns into motion, edge, and position maps for rapid decisions.",
+      studyPrompt: "Turn on cross-section to reveal layered visual maps and dominance gradients.",
+    },
   },
   {
     id: "cerebellum",
@@ -36,6 +51,11 @@ const sharedRegions: Region[] = [
     dominance: 80,
     evolution: "Highly conserved across vertebrates for movement calibration.",
     color: "#5ab7ff",
+    detail: {
+      microstructures: ["Purkinje-like bands", "Timing loops", "Balance correction nuclei"],
+      pathway: "Compares intended movement with sensory feedback and sends correction pulses.",
+      studyPrompt: "Explode the model to inspect the compact correction engine behind motion.",
+    },
   },
   {
     id: "brainstem",
@@ -45,6 +65,11 @@ const sharedRegions: Region[] = [
     dominance: 72,
     evolution: "Ancient architecture shared by nearly all vertebrate brains.",
     color: "#79d38a",
+    detail: {
+      microstructures: ["Reflex nuclei", "Arousal columns", "Autonomic rhythm centers"],
+      pathway: "Maintains survival rhythms while routing reflexive signals to the body.",
+      studyPrompt: "Peel layers to see how newer regions remain anchored to the survival core.",
+    },
   },
   {
     id: "olfactory",
@@ -54,6 +79,11 @@ const sharedRegions: Region[] = [
     dominance: 61,
     evolution: "Dominates species that map the world through chemical information.",
     color: "#ff8fb5",
+    detail: {
+      microstructures: ["Chemical identity bulbs", "Trail memory fibers", "Social scent relays"],
+      pathway: "Converts chemical gradients into identity, direction, and survival context.",
+      studyPrompt: "Focus this region to inspect scent-route relays and species-specific dominance.",
+    },
   },
 ];
 

@@ -16,6 +16,14 @@ export type RegionId =
   | "brainstem"
   | "olfactory";
 
+export type ModelSurface = "ellipsoid" | "compact" | "avian" | "serpentine" | "aquatic";
+
+export type RegionDetail = {
+  microstructures: string[];
+  studyPrompt: string;
+  pathway: string;
+};
+
 export type Region = {
   id: RegionId;
   name: string;
@@ -24,6 +32,7 @@ export type Region = {
   dominance: number;
   evolution: string;
   color: string;
+  detail: RegionDetail;
 };
 
 export type Mission = {
