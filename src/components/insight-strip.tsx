@@ -19,9 +19,15 @@ export function InsightStrip({
 }: InsightStripProps) {
   const labelsVisible = useNeuroStore((state) => state.labelsVisible);
   const explodedView = useNeuroStore((state) => state.explodedView);
+  const detailView = useNeuroStore((state) => state.detailView);
+  const crossSection = useNeuroStore((state) => state.crossSection);
+  const isolationMode = useNeuroStore((state) => state.isolationMode);
   const layerPeel = useNeuroStore((state) => state.layerPeel);
   const toggleLabels = useNeuroStore((state) => state.toggleLabels);
   const toggleExplodedView = useNeuroStore((state) => state.toggleExplodedView);
+  const toggleDetailView = useNeuroStore((state) => state.toggleDetailView);
+  const toggleCrossSection = useNeuroStore((state) => state.toggleCrossSection);
+  const toggleIsolationMode = useNeuroStore((state) => state.toggleIsolationMode);
   const setLayerPeel = useNeuroStore((state) => state.setLayerPeel);
 
   return (
@@ -42,6 +48,9 @@ export function InsightStrip({
             <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
               {selectedRegion.summary}
             </p>
+            <p className="mt-2 max-w-2xl text-xs font-semibold leading-5 text-slate-500">
+              Detail lens: {selectedRegion.detail.studyPrompt}
+            </p>
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -56,12 +65,27 @@ export function InsightStrip({
         <div className="flex flex-wrap items-center gap-2">
           <ControlButton active={labelsVisible} label="Labels" onClick={toggleLabels} />
           <ControlButton
+            active={detailView}
+            label="Detail lens"
+            onClick={toggleDetailView}
+          />
+          <ControlButton
             active={explodedView}
             label="Exploded"
             onClick={toggleExplodedView}
           />
+          <ControlButton
+            active={crossSection}
+            label="Cross-section"
+            onClick={toggleCrossSection}
+          />
+          <ControlButton
+            active={isolationMode}
+            label="Isolate"
+            onClick={toggleIsolationMode}
+          />
           <label className="min-w-44 rounded-2xl bg-white/65 px-3 py-2 text-xs font-semibold text-slate-600">
-            Layer peel {layerPeel}%
+            Explode depth {layerPeel}%
             <input
               className="mt-2 block w-full accent-cyan-500"
               max="100"

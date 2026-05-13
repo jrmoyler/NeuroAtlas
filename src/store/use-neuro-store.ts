@@ -10,6 +10,9 @@ type NeuroState = {
   selectedRegionId: RegionId;
   labelsVisible: boolean;
   explodedView: boolean;
+  detailView: boolean;
+  crossSection: boolean;
+  isolationMode: boolean;
   layerPeel: number;
   setActiveSpecies: (speciesId: SpeciesId) => void;
   setComparisonSpecies: (speciesId: SpeciesId) => void;
@@ -17,6 +20,9 @@ type NeuroState = {
   setSelectedRegion: (regionId: RegionId) => void;
   toggleLabels: () => void;
   toggleExplodedView: () => void;
+  toggleDetailView: () => void;
+  toggleCrossSection: () => void;
+  toggleIsolationMode: () => void;
   setLayerPeel: (value: number) => void;
 };
 
@@ -27,6 +33,9 @@ export const useNeuroStore = create<NeuroState>((set) => ({
   selectedRegionId: "frontal",
   labelsVisible: true,
   explodedView: false,
+  detailView: true,
+  crossSection: false,
+  isolationMode: false,
   layerPeel: 34,
   setActiveSpecies: (speciesId) => set({ activeSpeciesId: speciesId }),
   setComparisonSpecies: (speciesId) => set({ comparisonSpeciesId: speciesId }),
@@ -35,5 +44,9 @@ export const useNeuroStore = create<NeuroState>((set) => ({
   toggleLabels: () => set((state) => ({ labelsVisible: !state.labelsVisible })),
   toggleExplodedView: () =>
     set((state) => ({ explodedView: !state.explodedView })),
+  toggleDetailView: () => set((state) => ({ detailView: !state.detailView })),
+  toggleCrossSection: () => set((state) => ({ crossSection: !state.crossSection })),
+  toggleIsolationMode: () =>
+    set((state) => ({ isolationMode: !state.isolationMode })),
   setLayerPeel: (value) => set({ layerPeel: value }),
 }));

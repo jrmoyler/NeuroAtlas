@@ -109,6 +109,26 @@ function RegionAnalysis({
                   <p className="mt-1 text-xs leading-5 text-slate-600">
                     {region.summary}
                   </p>
+                  {isSelected ? (
+                    <div className="mt-3 rounded-2xl border border-white/70 bg-white/55 p-3">
+                      <p className="text-[0.62rem] font-bold uppercase tracking-[0.18em] text-slate-500">
+                        Detailed view
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        {region.detail.pathway}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {region.detail.microstructures.map((microstructure) => (
+                          <span
+                            key={microstructure}
+                            className="rounded-full bg-white/75 px-2 py-1 text-[0.62rem] font-semibold text-slate-500"
+                          >
+                            {microstructure}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <ProgressPill label="Energy" value={region.energyUsage} />
                     <ProgressPill label="Dominance" value={region.dominance} />
@@ -198,7 +218,9 @@ function ExplorePanel({ species }: { species: Species }) {
     <ModePanel
       items={[
         "Rotate, zoom, and pan the central model.",
-        "Peel layers to expose internal structures.",
+        "Peel layers to expose internal structures with exploded guide rails.",
+        "Activate detail lens to magnify selected microstructures.",
+        "Use cross-section and isolate modes for focused anatomical study.",
         `Current specimen calibrated at ${species.scale.toFixed(2)} relative atlas scale.`,
       ]}
       title="Explore controls"

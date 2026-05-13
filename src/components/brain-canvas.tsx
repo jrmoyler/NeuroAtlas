@@ -6,6 +6,8 @@ import { useMemo, useRef } from "react";
 import { AdditiveBlending, Color, Group, Mesh, Vector3 } from "three";
 import type { ThreeEvent } from "@react-three/fiber";
 import type { ExplorerMode, Region, RegionId, Species } from "@/lib/types";
+import { getModelProfile } from "@/lib/model-profiles";
+import type { ModelAnchor, ModelLayer, ModelProfile } from "@/lib/model-profiles";
 import { useNeuroStore } from "@/store/use-neuro-store";
 
 type BrainCanvasProps = {
@@ -14,52 +16,6 @@ type BrainCanvasProps = {
   comparisonSpecies: Species;
   selectedRegion: Region;
 };
-
-type RegionAnchor = {
-  id: RegionId;
-  label: string;
-  position: [number, number, number];
-  scale: [number, number, number];
-};
-
-const regionAnchors: RegionAnchor[] = [
-  {
-    id: "frontal",
-    label: "Frontal",
-    position: [-0.2, 0.58, 0.82],
-    scale: [1.15, 0.72, 0.92],
-  },
-  {
-    id: "temporal",
-    label: "Temporal",
-    position: [-0.86, -0.08, 0.1],
-    scale: [0.72, 0.46, 0.86],
-  },
-  {
-    id: "optic",
-    label: "Optic",
-    position: [0.2, 0.1, -0.82],
-    scale: [0.88, 0.52, 0.48],
-  },
-  {
-    id: "cerebellum",
-    label: "Cerebellum",
-    position: [0.36, -0.62, -0.56],
-    scale: [0.72, 0.38, 0.52],
-  },
-  {
-    id: "brainstem",
-    label: "Brainstem",
-    position: [0.1, -0.95, 0.08],
-    scale: [0.32, 0.78, 0.32],
-  },
-  {
-    id: "olfactory",
-    label: "Olfactory",
-    position: [-0.2, -0.2, 1.08],
-    scale: [0.58, 0.22, 0.34],
-  },
-];
 
 const foldPaths = [
   [
@@ -169,9 +125,16 @@ function BrainModel({
   const selectedRegionId = useNeuroStore((state) => state.selectedRegionId);
   const labelsVisible = useNeuroStore((state) => state.labelsVisible);
   const explodedView = useNeuroStore((state) => state.explodedView);
+  const detailView = useNeuroStore((state) => state.detailView);
+  const crossSection = useNeuroStore((state) => state.crossSection);
+  const isolationMode = useNeuroStore((state) => state.isolationMode);
   const layerPeel = useNeuroStore((state) => state.layerPeel);
   const setSelectedRegion = useNeuroStore((state) => state.setSelectedRegion);
   const modeIntensity = getModeIntensity(activeMode);
+  const profile = getModelProfile(species.id);
+  const selectedAnchor =
+    profile.anchors.find((anchor) => anchor.id === selectedRegionId) ??
+    profile.anchors[0];
 
   useFrame(({ clock }) => {
     if (!groupRef.current) {
@@ -179,15 +142,36 @@ function BrainModel({
     }
 
     const elapsed = clock.getElapsedTime();
-    groupRef.current.rotation.y = Math.sin(elapsed * 0.12) * 0.14;
-    groupRef.current.rotation.x = Math.sin(elapsed * 0.08) * 0.05;
+    groupRef.current.rotation.y = profile.cranialTilt[1] + Math.sin(elapsed * 0.12) * 0.14;
+    groupRef.current.rotation.x = profile.cranialTilt[0] + Math.sin(elapsed * 0.08) * 0.05;
+    groupRef.current.rotation.z = profile.cranialTilt[2];
   });
 
   return (
-    <group ref={groupRef} scale={2.05 * species.scale}>
+    <group
+      ref={groupRef}
+      rotation={profile.cranialTilt}
+      scale={[
+        2.05 * species.scale * profile.globalScale[0],
+        2.05 * species.scale * profile.globalScale[1],
+        2.05 * species.scale * profile.globalScale[2],
+      ]}
+    >
       <HolographicGrid accent={species.accent} />
+      <SpeciesSurfaceCage
+        accent={species.accent}
+        detailView={detailView}
+        explodedView={explodedView}
+        profile={profile}
+      />
+      <AnatomicalLayers
+        crossSection={crossSection}
+        explodedView={explodedView}
+        layerPeel={layerPeel}
+        layers={profile.layers}
+      />
       <group position={[0, 0.08, 0]}>
-        {regionAnchors.map((anchor) => {
+        {profile.anchors.map((anchor) => {
           const region =
             species.regions.find((candidate) => candidate.id === anchor.id) ??
             species.regions[0];
@@ -196,34 +180,38 @@ function BrainModel({
           const anchorPosition = computeExplodedPosition(
             anchor.position,
             explodedView,
+            detailView,
             layerPeel,
+            selected,
           );
+          const dimmed = isolationMode && !selected;
 
           return (
             <group key={anchor.id} position={anchorPosition}>
-              <mesh
-                castShadow
-                onClick={(event) => handleRegionEvent(event, region.id, setSelectedRegion)}
-                onPointerOver={(event) =>
-                  handleRegionEvent(event, region.id, setSelectedRegion)
-                }
-                scale={anchor.scale}
-              >
-                <sphereGeometry args={[0.78, 56, 56]} />
-                <meshPhysicalMaterial
-                  clearcoat={0.45}
+              <PremiumRegionMesh
+                activeMode={activeMode}
+                anchor={anchor}
+                dimmed={dimmed}
+                modeIntensity={modeIntensity}
+                onSelect={setSelectedRegion}
+                profile={profile}
+                region={region}
+                regionColor={regionColor}
+                selected={selected}
+              />
+              <RegionGlow color={regionColor} dimmed={dimmed} selected={selected} />
+              {explodedView || detailView ? (
+                <ExplodedGuide
                   color={regionColor}
-                  emissive={regionColor}
-                  emissiveIntensity={selected ? 0.34 + modeIntensity : 0.08}
-                  metalness={0.04}
-                  opacity={selected ? 0.82 : 0.58}
-                  roughness={0.38}
-                  thickness={0.72}
-                  transparent
-                  transmission={0.22}
+                  from={[
+                    anchor.position[0] - anchorPosition[0],
+                    anchor.position[1] - anchorPosition[1],
+                    anchor.position[2] - anchorPosition[2],
+                  ]}
+                  selected={selected}
+                  to={[0, 0, 0]}
                 />
-              </mesh>
-              <RegionGlow color={regionColor} selected={selected} />
+              ) : null}
               {labelsVisible ? (
                 <AnatomyLabel
                   color={regionColor}
@@ -237,8 +225,19 @@ function BrainModel({
       </group>
 
       <CorpusCallosum color={species.secondaryAccent} />
-      <CorticalFolds accent={species.accent} />
+      <CorticalFolds accent={species.accent} density={profile.corticalFoldDensity} />
       <NeuralPathways activeMode={activeMode} accent={species.accent} />
+      {crossSection ? (
+        <CrossSectionPlane color={selectedRegion.color} selectedAnchor={selectedAnchor} />
+      ) : null}
+      {detailView ? (
+        <DetailedStudyLens
+          anchor={selectedAnchor}
+          profile={profile}
+          region={selectedRegion}
+          species={species}
+        />
+      ) : null}
       {activeMode === "compare" ? (
         <ComparisonGhost species={comparisonSpecies} />
       ) : null}
@@ -259,16 +258,115 @@ function handleRegionEvent(
 function computeExplodedPosition(
   position: [number, number, number],
   explodedView: boolean,
+  detailView: boolean,
   layerPeel: number,
+  selected: boolean,
 ): [number, number, number] {
   const vector = new Vector3(...position);
-  const peel = 1 + layerPeel / 210;
-  const explosion = explodedView ? 1.38 : 1;
-  vector.multiplyScalar(peel * explosion);
+  if (!explodedView && !detailView) {
+    return [vector.x, vector.y, vector.z];
+  }
+
+  const direction = vector.clone().normalize();
+  const explodedOffset = explodedView ? layerPeel / 116 : layerPeel / 340;
+  const detailOffset = detailView && selected ? 0.16 : 0;
+  vector.add(direction.multiplyScalar(explodedOffset + detailOffset));
   return [vector.x, vector.y, vector.z];
 }
 
-function RegionGlow({ color, selected }: { color: string; selected: boolean }) {
+function PremiumRegionMesh({
+  activeMode,
+  anchor,
+  dimmed,
+  modeIntensity,
+  onSelect,
+  profile,
+  region,
+  regionColor,
+  selected,
+}: {
+  activeMode: ExplorerMode;
+  anchor: ModelAnchor;
+  dimmed: boolean;
+  modeIntensity: number;
+  onSelect: (regionId: RegionId) => void;
+  profile: ModelProfile;
+  region: Region;
+  regionColor: string;
+  selected: boolean;
+}) {
+  const meshRef = useRef<Mesh>(null);
+
+  useFrame(({ clock }) => {
+    if (!meshRef.current) {
+      return;
+    }
+
+    const pulse = selected ? Math.sin(clock.getElapsedTime() * 2.1) * 0.025 : 0;
+    meshRef.current.scale.set(
+      anchor.scale[0] + pulse,
+      anchor.scale[1] + pulse,
+      anchor.scale[2] + pulse,
+    );
+  });
+
+  return (
+    <mesh
+      ref={meshRef}
+      castShadow
+      onClick={(event) => handleRegionEvent(event, region.id, onSelect)}
+      onPointerOver={(event) => handleRegionEvent(event, region.id, onSelect)}
+      rotation={anchor.rotation}
+      scale={anchor.scale}
+    >
+      <SurfaceGeometry anchor={anchor} profile={profile} />
+      <meshPhysicalMaterial
+        clearcoat={0.56}
+        color={regionColor}
+        emissive={regionColor}
+        emissiveIntensity={selected ? 0.38 + modeIntensity : 0.07}
+        metalness={activeMode === "ar" ? 0.14 : 0.04}
+        opacity={dimmed ? 0.16 : selected ? 0.86 : 0.58}
+        roughness={0.34}
+        thickness={0.84}
+        transparent
+        transmission={dimmed ? 0.48 : 0.22}
+      />
+    </mesh>
+  );
+}
+
+function SurfaceGeometry({
+  anchor,
+  profile,
+}: {
+  anchor: ModelAnchor;
+  profile: ModelProfile;
+}) {
+  if (profile.surface === "serpentine" && anchor.id === "olfactory") {
+    return <torusGeometry args={[0.58, 0.12, 18, 72, Math.PI * 1.38]} />;
+  }
+
+  if (profile.surface === "avian" && anchor.id === "optic") {
+    return <sphereGeometry args={[0.82, 64, 40, 0, Math.PI * 2, 0.2, Math.PI * 0.82]} />;
+  }
+
+  if (profile.surface === "aquatic" && anchor.id === "brainstem") {
+    return <cylinderGeometry args={[0.28, 0.2, 1.1, 32, 4]} />;
+  }
+
+  return <sphereGeometry args={[0.78, 64, 64]} />;
+}
+
+function RegionGlow({
+  color,
+  dimmed,
+  selected,
+}: {
+  color: string;
+  dimmed: boolean;
+  selected: boolean;
+}) {
   const meshRef = useRef<Mesh>(null);
 
   useFrame(({ clock }) => {
@@ -287,10 +385,33 @@ function RegionGlow({ color, selected }: { color: string; selected: boolean }) {
         blending={AdditiveBlending}
         color={color}
         depthWrite={false}
-        opacity={selected ? 0.16 : 0.045}
+        opacity={dimmed ? 0.01 : selected ? 0.18 : 0.045}
         transparent
       />
     </mesh>
+  );
+}
+
+function ExplodedGuide({
+  color,
+  from,
+  selected,
+  to,
+}: {
+  color: string;
+  from: [number, number, number];
+  selected: boolean;
+  to: [number, number, number];
+}) {
+  return (
+    <Line
+      color={color}
+      dashed={!selected}
+      lineWidth={selected ? 1.6 : 0.7}
+      opacity={selected ? 0.42 : 0.18}
+      points={[from, to]}
+      transparent
+    />
   );
 }
 
@@ -321,6 +442,252 @@ function AnatomyLabel({
   );
 }
 
+function SpeciesSurfaceCage({
+  accent,
+  detailView,
+  explodedView,
+  profile,
+}: {
+  accent: string;
+  detailView: boolean;
+  explodedView: boolean;
+  profile: ModelProfile;
+}) {
+  const cageRef = useRef<Mesh>(null);
+
+  useFrame(({ clock }) => {
+    if (!cageRef.current) {
+      return;
+    }
+
+    cageRef.current.rotation.y = Math.sin(clock.getElapsedTime() * 0.18) * 0.08;
+  });
+
+  return (
+    <mesh ref={cageRef} scale={[1.34, 1.08, 1.18]}>
+      <SurfaceShellGeometry profile={profile} />
+      <meshBasicMaterial
+        blending={AdditiveBlending}
+        color={accent}
+        opacity={explodedView || detailView ? 0.13 : 0.07}
+        transparent
+        wireframe
+      />
+    </mesh>
+  );
+}
+
+function SurfaceShellGeometry({ profile }: { profile: ModelProfile }) {
+  if (profile.surface === "avian") {
+    return <sphereGeometry args={[1, 48, 32, 0, Math.PI * 2, 0.18, Math.PI * 0.86]} />;
+  }
+
+  if (profile.surface === "serpentine" || profile.surface === "aquatic") {
+    return <sphereGeometry args={[1, 44, 28]} />;
+  }
+
+  return <sphereGeometry args={[1, 56, 36]} />;
+}
+
+function AnatomicalLayers({
+  crossSection,
+  explodedView,
+  layerPeel,
+  layers,
+}: {
+  crossSection: boolean;
+  explodedView: boolean;
+  layerPeel: number;
+  layers: ModelLayer[];
+}) {
+  return (
+    <group>
+      {layers.map((layer, index) => {
+        const separation = explodedView ? (index + 1) * layerPeel * 0.0048 : 0;
+        const radius = layer.radius + separation;
+        const opacity = crossSection ? layer.opacity * 1.3 : layer.opacity;
+
+        return (
+          <group key={layer.id} position={[0, separation * 0.16, -separation * 0.12]}>
+            <mesh scale={[radius, radius * 0.78, radius * 0.92]}>
+              <sphereGeometry args={[1, 48, 32]} />
+              <meshBasicMaterial
+                blending={AdditiveBlending}
+                color={layer.color}
+                opacity={opacity}
+                transparent
+                wireframe={index !== 0}
+              />
+            </mesh>
+            {explodedView ? (
+              <Text
+                anchorX="center"
+                color="#425466"
+                fontSize={0.065}
+                position={[radius + 0.18, 0.2 + index * 0.1, 0]}
+              >
+                {layer.label}
+              </Text>
+            ) : null}
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+function CrossSectionPlane({
+  color,
+  selectedAnchor,
+}: {
+  color: string;
+  selectedAnchor: ModelAnchor;
+}) {
+  const planeRef = useRef<Mesh>(null);
+
+  useFrame(({ clock }) => {
+    if (!planeRef.current) {
+      return;
+    }
+
+    planeRef.current.rotation.z = Math.sin(clock.getElapsedTime() * 0.35) * 0.1;
+  });
+
+  return (
+    <group position={selectedAnchor.position}>
+      <mesh ref={planeRef} rotation={[Math.PI / 2, 0, Math.PI / 4]} scale={[1.22, 1.22, 1]}>
+        <circleGeometry args={[0.72, 72]} />
+        <meshBasicMaterial
+          blending={AdditiveBlending}
+          color={color}
+          opacity={0.22}
+          transparent
+        />
+      </mesh>
+      <Line
+        color="#ffffff"
+        lineWidth={1}
+        opacity={0.42}
+        points={[
+          [-0.54, 0, 0],
+          [0.54, 0, 0],
+        ]}
+        transparent
+      />
+    </group>
+  );
+}
+
+function DetailedStudyLens({
+  anchor,
+  profile,
+  region,
+  species,
+}: {
+  anchor: ModelAnchor;
+  profile: ModelProfile;
+  region: Region;
+  species: Species;
+}) {
+  const lensRef = useRef<Group>(null);
+
+  useFrame(({ clock }) => {
+    if (!lensRef.current) {
+      return;
+    }
+
+    const elapsed = clock.getElapsedTime();
+    lensRef.current.rotation.y = Math.sin(elapsed * 0.2) * 0.12;
+    lensRef.current.position.y = 0.48 + Math.sin(elapsed * 0.9) * 0.025;
+  });
+
+  return (
+    <group ref={lensRef} position={[1.58, 0.48, 1.16]} scale={profile.detailMagnification}>
+      <mesh>
+        <sphereGeometry args={[0.38, 48, 48]} />
+        <meshPhysicalMaterial
+          clearcoat={0.9}
+          color={region.color}
+          emissive={region.color}
+          emissiveIntensity={0.3}
+          opacity={0.34}
+          roughness={0.18}
+          transparent
+          transmission={0.42}
+        />
+      </mesh>
+      <mesh scale={[1.26, 0.52, 1.26]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.44, 0.006, 8, 96]} />
+        <meshBasicMaterial color={region.color} opacity={0.42} transparent />
+      </mesh>
+      <DetailMicrostructures color={region.color} labels={region.detail.microstructures} />
+      <Line
+        color={region.color}
+        lineWidth={1.2}
+        opacity={0.34}
+        points={[
+          [0, 0, 0],
+          [
+            anchor.position[0] - 1.58,
+            anchor.position[1] - 0.48,
+            anchor.position[2] - 1.16,
+          ],
+        ]}
+        transparent
+      />
+      <Text
+        anchorX="center"
+        color="#10202a"
+        fontSize={0.07}
+        maxWidth={1.2}
+        outlineColor="#ffffff"
+        outlineWidth={0.008}
+        position={[0, -0.58, 0]}
+      >
+        {species.name} detailed {region.name}
+      </Text>
+    </group>
+  );
+}
+
+function DetailMicrostructures({
+  color,
+  labels,
+}: {
+  color: string;
+  labels: string[];
+}) {
+  return (
+    <group>
+      {labels.map((label, index) => {
+        const angle = (index / labels.length) * Math.PI * 2;
+        const x = Math.cos(angle) * 0.34;
+        const z = Math.sin(angle) * 0.28;
+        const y = index % 2 === 0 ? 0.08 : -0.08;
+
+        return (
+          <group key={label} position={[x, y, z]}>
+            <mesh>
+              <sphereGeometry args={[0.035, 16, 16]} />
+              <meshBasicMaterial color={color} opacity={0.86} transparent />
+            </mesh>
+            <Line
+              color={color}
+              lineWidth={0.8}
+              opacity={0.32}
+              points={[
+                [0, 0, 0],
+                [x * -0.6, y * -0.4, z * -0.6],
+              ]}
+              transparent
+            />
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
 function CorpusCallosum({ color }: { color: string }) {
   return (
     <mesh position={[0, 0.02, 0.24]} rotation={[Math.PI / 2, 0, Math.PI / 2]} scale={[1.2, 0.5, 0.24]}>
@@ -337,7 +704,7 @@ function CorpusCallosum({ color }: { color: string }) {
   );
 }
 
-function CorticalFolds({ accent }: { accent: string }) {
+function CorticalFolds({ accent, density }: { accent: string; density: number }) {
   return (
     <group>
       {foldPaths.map((path, index) => (
@@ -345,8 +712,8 @@ function CorticalFolds({ accent }: { accent: string }) {
           key={path.map((point) => point.join(",")).join("-")}
           color={index % 2 === 0 ? accent : "#ffffff"}
           dashed={index % 2 === 1}
-          lineWidth={index % 2 === 0 ? 1.7 : 1}
-          opacity={index % 2 === 0 ? 0.58 : 0.42}
+          lineWidth={(index % 2 === 0 ? 1.7 : 1) * density}
+          opacity={(index % 2 === 0 ? 0.58 : 0.42) * density}
           points={path}
           transparent
         />
